@@ -18,14 +18,14 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // connect to SQLite DB
-    let manager = SqliteConnectionManager::memory();
+    let manager = SqliteConnectionManager::file("cost-of-life.db");
     let pool = r2d2::Pool::new(manager).unwrap();
 
     pool.get()
         .unwrap()
         .execute(
             "
-CREATE TABLE expense_source (
+CREATE TABLE IF NOT EXISTS expense_source (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     expense_amount INTEGER NOT NULL,
