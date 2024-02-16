@@ -1,4 +1,4 @@
-use crate::common::Period;
+use crate::domain::Period;
 use rusqlite::{
     types::{FromSql, FromSqlResult, ToSqlOutput, ValueRef},
     ToSql,
