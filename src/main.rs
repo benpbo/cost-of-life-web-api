@@ -94,20 +94,22 @@ async fn get_expense_source_by_id(
         .prepare("SELECT name, expense_amount, expense_period FROM expense_source WHERE id = ?1")
         .map_err(|err| error::ErrorInternalServerError(err))?;
     let id = id.into_inner();
-    let source = stmt
-        .query_row([id], |row| {
-            Ok(ExpenseSource {
-                id,
-                name: row.get(0)?,
-                expense: RecurringMoneyValue {
-                    amount: row.get(1)?,
-                    period: row.get(2)?,
-                },
-            })
+    let result = stmt.query_row([id], |row| {
+        Ok(ExpenseSource {
+            id,
+            name: row.get(0)?,
+            expense: RecurringMoneyValue {
+                amount: row.get(1)?,
+                period: row.get(2)?,
+            },
         })
-        .map_err(|err| error::ErrorInternalServerError(err))?;
+    });
 
-    Ok(HttpResponse::Ok().json(source))
+    match result {
+        Ok(source) => Ok(HttpResponse::Ok().json(source)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(HttpResponse::NotFound().body(())),
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+    }
 }
 
 #[get("/expense/sources")]
