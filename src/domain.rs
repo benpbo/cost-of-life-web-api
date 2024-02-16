@@ -7,13 +7,13 @@ pub struct ExpenseSource {
     pub expense: RecurringMoneyValue,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct RecurringMoneyValue {
     pub amount: i32,
     pub period: Period,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Period {
     Month,
     Year,
