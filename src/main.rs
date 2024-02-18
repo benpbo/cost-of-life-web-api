@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS expense_source (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     expense_amount INTEGER NOT NULL,
-    expense_period TEXT CHECK( expense_period IN ('Month', 'Year') ) NOT NULL
+    expense_period_kind TEXT CHECK( expense_period_kind IN ('Month', 'Year') ) NOT NULL,
+    expense_period_every INTEGER NOT NULL
 )
             ",
             (),

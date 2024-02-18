@@ -14,7 +14,13 @@ pub struct RecurringMoneyValue {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
-pub enum Period {
+pub struct Period {
+    pub kind: PeriodKind,
+    pub every: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub enum PeriodKind {
     Month,
     Year,
 }
