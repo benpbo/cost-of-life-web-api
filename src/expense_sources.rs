@@ -12,7 +12,7 @@ pub fn create_service() -> actix_web::Scope {
         .route("/{id}", web::get().to(get_expense_source))
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 struct CreateExpenseSourceRequest {
     name: String,
     expense: RecurringMoneyValue,
