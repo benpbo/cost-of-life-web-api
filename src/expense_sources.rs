@@ -38,7 +38,6 @@ async fn get_expense_source(
     }
 }
 
-// #[get("/expense/sources")]
 async fn get_expense_sources(db: web::Data<Pool>) -> actix_web::Result<impl Responder> {
     let sources = get_all_expense_sources(&db).await?;
     Ok(web::Json(sources))
