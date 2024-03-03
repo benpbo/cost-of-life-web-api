@@ -1,6 +1,9 @@
 use crate::{
     domain::RecurringMoneyValue,
-    sqlite::{create_expense_source, get_all_expense_sources, get_expense_source_by_id, Pool},
+    sqlite::{
+        create_expense_source, delete_expense_source_by_id, get_all_expense_sources,
+        get_expense_source_by_id, Pool,
+    },
 };
 use actix_web::{http::header::LOCATION, web, HttpResponse, Responder};
 use serde::Deserialize;
@@ -10,6 +13,7 @@ pub fn create_service() -> actix_web::Scope {
         .route("", web::post().to(post_expense_sources))
         .route("", web::get().to(get_expense_sources))
         .route("/{id}", web::get().to(get_expense_source))
+        .route("/{id}", web::delete().to(delete_expense_source))
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -41,4 +45,12 @@ async fn get_expense_source(
 async fn get_expense_sources(db: web::Data<Pool>) -> actix_web::Result<impl Responder> {
     let sources = get_all_expense_sources(&db).await?;
     Ok(web::Json(sources))
+}
+
+async fn delete_expense_source(
+    db: web::Data<Pool>,
+    id: web::Path<i64>,
+) -> actix_web::Result<impl Responder> {
+    delete_expense_source_by_id(&db, id.into_inner()).await?;
+    Ok(HttpResponse::NoContent())
 }

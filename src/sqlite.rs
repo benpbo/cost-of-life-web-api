@@ -82,6 +82,15 @@ pub async fn create_expense_source(
     .await
 }
 
+pub async fn delete_expense_source_by_id(pool: &Pool, id: i64) -> actix_web::Result<()> {
+    execute(pool, |conn| {
+        conn.execute("DELETE FROM expense_source WHERE id = ?1", params![id])
+            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+        Ok(())
+    })
+    .await
+}
+
 async fn execute<
     T,
     F: FnOnce(PooledConnection<SqliteConnectionManager>) -> actix_web::Result<T>,
