@@ -91,6 +91,35 @@ pub async fn delete_expense_source_by_id(pool: &Pool, id: i64) -> actix_web::Res
     .await
 }
 
+pub async fn edit_expense_source_by_id(
+    pool: &Pool,
+    id: i64,
+    name: &str,
+    expense: RecurringMoneyValue,
+) -> actix_web::Result<()> {
+    execute(pool, |conn| {
+        conn.execute(
+            "
+UPDATE expense_source
+SET name=?2,
+    expense_amount=?3,
+    expense_period_kind=?4,
+    expense_period_every=?5
+WHERE id=?1",
+            params![
+                id,
+                name,
+                expense.amount,
+                expense.period.kind,
+                expense.period.every
+            ],
+        )
+        .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+        Ok(())
+    })
+    .await
+}
+
 async fn execute<
     T,
     F: FnOnce(PooledConnection<SqliteConnectionManager>) -> actix_web::Result<T>,

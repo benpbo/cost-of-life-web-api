@@ -1,8 +1,8 @@
 use crate::{
     domain::RecurringMoneyValue,
     sqlite::{
-        create_expense_source, delete_expense_source_by_id, get_all_expense_sources,
-        get_expense_source_by_id, Pool,
+        create_expense_source, delete_expense_source_by_id, edit_expense_source_by_id,
+        get_all_expense_sources, get_expense_source_by_id, Pool,
     },
 };
 use actix_web::{http::header::LOCATION, web, HttpResponse, Responder};
@@ -14,10 +14,17 @@ pub fn create_service() -> actix_web::Scope {
         .route("", web::get().to(get_expense_sources))
         .route("/{id}", web::get().to(get_expense_source))
         .route("/{id}", web::delete().to(delete_expense_source))
+        .route("/{id}", web::put().to(put_expense_source))
 }
 
 #[derive(Deserialize, Clone, Debug)]
 struct CreateExpenseSourceRequest {
+    name: String,
+    expense: RecurringMoneyValue,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+struct EditExpenseSourceRequest {
     name: String,
     expense: RecurringMoneyValue,
 }
@@ -52,5 +59,20 @@ async fn delete_expense_source(
     id: web::Path<i64>,
 ) -> actix_web::Result<impl Responder> {
     delete_expense_source_by_id(&db, id.into_inner()).await?;
+    Ok(HttpResponse::NoContent())
+}
+
+async fn put_expense_source(
+    db: web::Data<Pool>,
+    id: web::Path<i64>,
+    expense_source: web::Json<EditExpenseSourceRequest>,
+) -> actix_web::Result<impl Responder> {
+    edit_expense_source_by_id(
+        &db,
+        id.into_inner(),
+        &expense_source.name,
+        expense_source.expense,
+    )
+    .await?;
     Ok(HttpResponse::NoContent())
 }
