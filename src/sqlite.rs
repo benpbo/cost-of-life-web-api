@@ -10,18 +10,43 @@ use rusqlite::{
 
 pub type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
 
+pub fn create_pool() -> r2d2::Pool<SqliteConnectionManager> {
+    let manager = SqliteConnectionManager::file("cost-of-life.db");
+    let pool = r2d2::Pool::new(manager).unwrap();
+
+    pool.get()
+        .unwrap()
+        .execute(
+            "
+CREATE TABLE IF NOT EXISTS expense_source (
+    id INTEGER PRIMARY KEY,
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL,
+    expense_amount INTEGER NOT NULL,
+    expense_period_kind TEXT CHECK( expense_period_kind IN ('Month', 'Year') ) NOT NULL,
+    expense_period_every INTEGER NOT NULL
+)
+            ",
+            (),
+        )
+        .unwrap();
+
+    pool
+}
+
 pub async fn get_expense_source_by_id(
     pool: &Pool,
+    owner: &str,
     id: i64,
 ) -> actix_web::Result<Option<ExpenseSource>> {
     execute(pool, |conn| {
         let mut stmt = conn
             .prepare(
-                "SELECT name, expense_amount, expense_period_kind, expense_period_every FROM expense_source WHERE id = ?1",
+                "SELECT name, expense_amount, expense_period_kind, expense_period_every FROM expense_source WHERE id = ?1 AND owner = ?2",
             )
             .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
 
-        match stmt.query_row([id], |row| {
+        match stmt.query_row(params![id, owner], |row| {
             Ok(ExpenseSource {
                 id,
                 name: row.get(0)?,
@@ -42,12 +67,20 @@ pub async fn get_expense_source_by_id(
     .await
 }
 
-pub async fn get_all_expense_sources(pool: &Pool) -> actix_web::Result<Vec<ExpenseSource>> {
+pub async fn get_all_expense_sources(
+    pool: &Pool,
+    owner: &str,
+) -> actix_web::Result<Vec<ExpenseSource>> {
     execute(pool, |conn| {
         let mut stmt = conn
-            .prepare("SELECT id, name, expense_amount, expense_period_kind, expense_period_every FROM expense_source")
+            .prepare(
+                "
+SELECT id, name, expense_amount, expense_period_kind, expense_period_every
+FROM expense_source
+WHERE owner = ?1",
+            )
             .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
-        stmt.query_map([], |row| {
+        stmt.query_map(params![owner], |row| {
             Ok(ExpenseSource {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -68,13 +101,14 @@ pub async fn get_all_expense_sources(pool: &Pool) -> actix_web::Result<Vec<Expen
 
 pub async fn create_expense_source(
     pool: &Pool,
+    owner: &str,
     name: &str,
     expense: RecurringMoneyValue,
 ) -> actix_web::Result<i64> {
     execute(pool, |conn| {
         conn.execute(
-            "INSERT INTO expense_source (name, expense_amount, expense_period_kind, expense_period_every) VALUES (?1, ?2, ?3, ?4)",
-            params![name, expense.amount, expense.period.kind, expense.period.every],
+            "INSERT INTO expense_source (name, owner, expense_amount, expense_period_kind, expense_period_every) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![name, owner, expense.amount, expense.period.kind, expense.period.every],
         )
         .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
         Ok(conn.last_insert_rowid())
@@ -82,10 +116,17 @@ pub async fn create_expense_source(
     .await
 }
 
-pub async fn delete_expense_source_by_id(pool: &Pool, id: i64) -> actix_web::Result<()> {
+pub async fn delete_expense_source_by_id(
+    pool: &Pool,
+    owner: &str,
+    id: i64,
+) -> actix_web::Result<()> {
     execute(pool, |conn| {
-        conn.execute("DELETE FROM expense_source WHERE id = ?1", params![id])
-            .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
+        conn.execute(
+            "DELETE FROM expense_source WHERE id = ?1 AND owner = ?2",
+            params![id, owner],
+        )
+        .map_err(|err| actix_web::error::ErrorInternalServerError(err))?;
         Ok(())
     })
     .await
@@ -93,6 +134,7 @@ pub async fn delete_expense_source_by_id(pool: &Pool, id: i64) -> actix_web::Res
 
 pub async fn edit_expense_source_by_id(
     pool: &Pool,
+    owner: &str,
     id: i64,
     name: &str,
     expense: RecurringMoneyValue,
@@ -101,13 +143,14 @@ pub async fn edit_expense_source_by_id(
         conn.execute(
             "
 UPDATE expense_source
-SET name=?2,
-    expense_amount=?3,
-    expense_period_kind=?4,
-    expense_period_every=?5
-WHERE id=?1",
+SET name=?3,
+    expense_amount=?4,
+    expense_period_kind=?5,
+    expense_period_every=?6
+WHERE id=?1 AND owner=?2",
             params![
                 id,
+                owner,
                 name,
                 expense.amount,
                 expense.period.kind,
